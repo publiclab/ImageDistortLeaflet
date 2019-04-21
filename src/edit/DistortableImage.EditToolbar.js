@@ -2,11 +2,16 @@ L.DistortableImage = L.DistortableImage || {};
 
 var EditOverlayAction = LeafletToolbar.ToolbarAction.extend({
 		initialize: function(map, overlay, options) {
-			this._overlay = overlay;
-			this._map = map;
+            this._map = map;
+            this._overlay = overlay;
+            this._image = this._overlay._image;
+            this._editing = this._overlay.editing;
 
-			LeafletToolbar.ToolbarAction.prototype.initialize.call(this, options);
-		}
+            LeafletToolbar.ToolbarAction.prototype.initialize.call(this, options);
+        },
+        addHooks: function() {
+            this.disable();
+        }
 	}),
 
 	ToggleTransparency = EditOverlayAction.extend({
@@ -137,47 +142,53 @@ var EditOverlayAction = LeafletToolbar.ToolbarAction.extend({
       tooltip: "Enable EXIF",
       title: "Geocode Image"
     }
-  },
+}});
 
-  addHooks: function() {
-    var image = this._overlay._image;
-    EXIF.getData(image, L.EXIF(image));
-  }
-  });
+var Cluster = EditOverlayAction.extend({
+    options: {
+        toolbarIcon: {
+            className: 'fa fa-ellipsis-h',
+            title: "More options"
+        },
+        subToolbar: new LeafletToolbar({
+            actions: [
+                ToggleTransparency,
+                ToggleEditable,
+                EnableEXIF,
+                ToggleOrder,
+            ]
+        })
+    }
+});
 
 L.DistortableImage.EditToolbar = LeafletToolbar.Popup.extend({
-	options: {
-		actions: [
-			ToggleTransparency,
-			RemoveOverlay,
-			ToggleOutline,
-			ToggleEditable,
-			ToggleRotateDistort,
-			ToggleExport,
-      EnableEXIF,
-      ToggleOrder
-    ]
-	},
-	
-	// todo: move to some sort of util class, these methods could be useful in future
-  _rotateToolbarAngleDeg: function(angle) {
-		var div = this._container,
-			divStyle = div.style;
+    options: {
+        actions: [
+            ToggleRotateDistort,
+            ToggleOutline,
+            ToggleExport,
+            RemoveOverlay,
+            Cluster
+        ]
+    },
+    // todo: move to some sort of util class, these methods could be useful in future
+    _rotateToolbarAngleDeg: function(angle) {
+        var div = this._container,
+            divStyle = div.style;
 
-		var oldTransform = divStyle.transform;
-		
-		divStyle.transform = oldTransform + "rotate(" + angle + "deg)";
-    divStyle.transformOrigin = "1080% 650%";
+        var oldTransform = divStyle.transform;
 
-		this._rotateToolbarIcons(angle);
-	},
-	
-	_rotateToolbarIcons: function(angle) {
-		var icons = document.querySelectorAll(".fa");
+        divStyle.transform = oldTransform + "rotate(" + angle + "deg)";
+        divStyle.transformOrigin = "1080% 650%";
 
-		for (var i = 0; i < icons.length; i++) {
-			icons.item(i).style.transform = "rotate(" + -angle + "deg)";
-		}
-	},
+        this._rotateToolbarIcons(angle);
+    },
 
+    _rotateToolbarIcons: function(angle) {
+        var icons = document.querySelectorAll(".fa");
+
+        for (var i = 0; i < icons.length; i++) {
+            icons.item(i).style.transform = "rotate(" + -angle + "deg)";
+        }
+    }
 });
