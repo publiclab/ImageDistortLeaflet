@@ -29,6 +29,7 @@ module.exports = function(grunt) {
             warpWebGl: false,
             EXIF: false,
             alert: false,
+            confirm: false,
 
             // Mocha
 
@@ -126,7 +127,7 @@ module.exports = function(grunt) {
             "src/util/*.js",
             "src/DistortableImageOverlay.js",
             "src/DistortableCollection.js",
-            "src/edit/getEXIFdata.js",
+            'src/edit/tools/L.tools.EXIF.js',
             "src/edit/EditHandle.js",
             "src/edit/LockHandle.js",
             "src/edit/DistortHandle.js",
@@ -160,6 +161,7 @@ module.exports = function(grunt) {
         'concat:dist'
     ]);
 
+    // disable for now?
     grunt.registerTask('coverage', 'Custom commmand-line reporter for karma-coverage', function() {
         var coverageReports = grunt.file.expand('coverage/*/coverage.txt'),
             reports = {},

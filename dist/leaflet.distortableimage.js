@@ -924,90 +924,67 @@ L.distortableCollection = function(id, options) {
   return new L.DistortableCollection(id, options);
 };
 
-L.EXIF = function getEXIFdata(img) {
-  if (Object.keys(EXIF.getAllTags(img)).length !== 0) {
-    console.log(EXIF.getAllTags(img));
-    var GPS = EXIF.getAllTags(img),
-      altitude;
+L.tools = L.tools || {};
 
-    /* If the lat/lng is available. */
-    if (
-      typeof GPS.GPSLatitude !== "undefined" &&
-      typeof GPS.GPSLongitude !== "undefined"
-    ) {
-      // sadly, encoded in [degrees,minutes,seconds]
-      // primitive value = GPS.GPSLatitude[x].numerator
-      var lat =
-        GPS.GPSLatitude[0] +
-        GPS.GPSLatitude[1] / 60 +
-        GPS.GPSLatitude[2] / 3600;
-      var lng =
-        GPS.GPSLongitude[0] +
-        GPS.GPSLongitude[1] / 60 +
-        GPS.GPSLongitude[2] / 3600;
+L.tools.EXIF = function getEXIFdata(ref, overlay) {
+  var GPS = ref.exifdata,
+    lat,
+    lng;
+  
+  if (
+    typeof GPS.GPSLatitude !== "undefined" &&
+    typeof GPS.GPSLongitude !== "undefined"
+  ) {
+    lat =
+      GPS.GPSLatitude[0] + GPS.GPSLatitude[1] / 60 + GPS.GPSLatitude[2] / 3600;
+    lng =
+      GPS.GPSLongitude[0] +
+      GPS.GPSLongitude[1] / 60 +
+      GPS.GPSLongitude[2] / 3600;
 
-      if (GPS.GPSLatitudeRef !== "N") {
-        lat = lat * -1;
-      }
-      if (GPS.GPSLongitudeRef === "W") {
-        lng = lng * -1;
-      }
+    if (GPS.GPSLatitudeRef !== "N") {
+      lat = lat * -1;
     }
-
-    // Attempt to use GPS compass heading; will require
-    // some trig to calc corner points, which you can find below:
-
-    var angle = 0;
-    // "T" refers to "True north", so -90.
-    if (GPS.GPSImgDirectionRef === "T") {
-      angle =
-        (Math.PI / 180) *
-        (GPS.GPSImgDirection.numerator / GPS.GPSImgDirection.denominator - 90);
+    if (GPS.GPSLongitudeRef === "W") {
+      lng = lng * -1;
     }
-    // "M" refers to "Magnetic north"
-    else if (GPS.GPSImgDirectionRef === "M") {
-      angle =
-        (Math.PI / 180) *
-        (GPS.GPSImgDirection.numerator / GPS.GPSImgDirection.denominator - 90);
-    } else {
-      console.log("No compass data found");
-    }
-
-    console.log("Orientation:", GPS.Orientation);
-
-    /* If there is orientation data -- i.e. landscape/portrait etc */
-    if (GPS.Orientation === 6) {
-      //CCW
-      angle += (Math.PI / 180) * -90;
-    } else if (GPS.Orientation === 8) {
-      //CW
-      angle += (Math.PI / 180) * 90;
-    } else if (GPS.Orientation === 3) {
-      //180
-      angle += (Math.PI / 180) * 180;
-    }
-
-    /* If there is altitude data */
-    if (
-      typeof GPS.GPSAltitude !== "undefined" &&
-      typeof GPS.GPSAltitudeRef !== "undefined"
-    ) {
-      // Attempt to use GPS altitude:
-      // (may eventually need to find EXIF field of view for correction)
-      if (
-        typeof GPS.GPSAltitude !== "undefined" &&
-        typeof GPS.GPSAltitudeRef !== "undefined"
-      ) {
-        altitude =
-          GPS.GPSAltitude.numerator / GPS.GPSAltitude.denominator +
-          GPS.GPSAltitudeRef;
-      } else {
-        altitude = 0; // none
-      }
-    }
-  } else {
-    alert("EXIF initialized. Press again to view data in console.");
   }
+
+  var angle = 0;
+
+  if (GPS.GPSImgDirectionRef === "T" || GPS.GPSImgDirectionRef === "M") {
+    angle =
+      (Math.PI / 180) *
+      (GPS.GPSImgDirection.numerator / GPS.GPSImgDirection.denominator - 90);
+  }
+
+  if (GPS.Orientation === 6) {
+    angle += (Math.PI / 180) * -90;
+  } else if (GPS.Orientation === 8) {
+    angle += (Math.PI / 180) * 90;
+  } else if (GPS.Orientation === 3) {
+    angle += (Math.PI / 180) * 180;
+  }
+
+  var panTo = L.latLng(lat, lng);
+
+  var x_diff = overlay.getCorner(0).lng - overlay.getCorner(1).lng; // width
+  var y_diff = overlay.getCorner(0).lat - overlay.getCorner(2).lat; // height
+
+    //  _corners: array element holding a <LatLng> object ([])
+    //  changes made to _corners, unlike getCorners (value return only)
+    // will actually mutate corners, which is what we need to do
+  
+  overlay._corners[0] = L.latLng(lat + y_diff / 2, lng + x_diff / 2);
+  overlay._corners[1] = L.latLng(lat + y_diff / 2, lng - x_diff / 2);
+  overlay._corners[2] = L.latLng(lat - y_diff / 2, lng + x_diff / 2);
+  overlay._corners[3] = L.latLng(lat - y_diff / 2, lng - x_diff / 2);
+
+  overlay.editing._rotateBy(angle);
+
+  overlay._map.setView(panTo, 13);
+
+  return GPS;
 };
 
 L.EditHandle = L.Marker.extend({
@@ -1290,18 +1267,20 @@ var ToggleTransparency = L.EditAction.extend({
     var edit = overlay.editing,
       href,
       tooltip;
-    
+
     if (edit._transparent) {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#opacity"></use>';
-      tooltip = 'Make Image Opaque';
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#opacity"></use>';
+      tooltip = "Make Image Opaque";
     } else {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#opacity-empty"></use>';
-      tooltip = 'Make Image Transparent';
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#opacity-empty"></use>';
+      tooltip = "Make Image Transparent";
     }
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
+      html: "<svg>" + href + "</svg>",
       tooltip: tooltip
     };
 
@@ -1320,18 +1299,20 @@ var ToggleOutline = L.EditAction.extend({
     var edit = overlay.editing,
       href,
       tooltip;
-    
+
     if (edit._outlined) {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#border_clear"></use>';
-      tooltip = 'Remove Border';
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#border_clear"></use>';
+      tooltip = "Remove Border";
     } else {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#border_outer"></use>';
-      tooltip = 'Add Border';
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#border_outer"></use>';
+      tooltip = "Add Border";
     }
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
+      html: "<svg>" + href + "</svg>",
       tooltip: tooltip
     };
 
@@ -1347,12 +1328,13 @@ var ToggleOutline = L.EditAction.extend({
 
 var Delete = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#delete_forever"></use>';
+    var href =
+      '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#delete_forever"></use>';
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
-      tooltip: 'Delete Image'
+      html: "<svg>" + href + "</svg>",
+      tooltip: "Delete Image"
     };
 
     L.EditAction.prototype.initialize.call(this, map, overlay, options);
@@ -1371,17 +1353,19 @@ var ToggleLock = L.EditAction.extend({
       href,
       tooltip;
 
-    if (edit._mode === 'lock') {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#unlock"></use>';
-      tooltip = 'Unlock';
+    if (edit._mode === "lock") {
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#unlock"></use>';
+      tooltip = "Unlock";
     } else {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#lock"></use>';
-      tooltip = 'Lock';
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#lock"></use>';
+      tooltip = "Lock";
     }
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
+      html: "<svg>" + href + "</svg>",
       tooltip: tooltip
     };
 
@@ -1401,17 +1385,19 @@ var ToggleRotateScale = L.EditAction.extend({
       href,
       tooltip;
 
-    if (edit._mode === 'rotateScale') {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#transform"></use>';
-      tooltip = 'Distort';
+    if (edit._mode === "rotateScale") {
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#transform"></use>';
+      tooltip = "Distort";
     } else {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#crop_rotate"></use>';
-      tooltip = 'Rotate+Scale';
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#crop_rotate"></use>';
+      tooltip = "Rotate+Scale";
     }
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
+      html: "<svg>" + href + "</svg>",
       tooltip: tooltip
     };
 
@@ -1427,12 +1413,13 @@ var ToggleRotateScale = L.EditAction.extend({
 
 var Export = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var  href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#get_app"></use>';
+    var href =
+      '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#get_app"></use>';
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
-      tooltip: 'Export Image'
+      html: "<svg>" + href + "</svg>",
+      tooltip: "Export Image"
     };
 
     L.EditAction.prototype.initialize.call(this, map, overlay, options);
@@ -1452,16 +1439,18 @@ var ToggleOrder = L.EditAction.extend({
       tooltip;
 
     if (edit._toggledImage) {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#flip_to_front"></use>';
-      tooltip = 'Stack to Front';
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#flip_to_front"></use>';
+      tooltip = "Stack to Front";
     } else {
-      href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#flip_to_back"></use>';
-      tooltip = 'Stack to Back';
+      href =
+        '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#flip_to_back"></use>';
+      tooltip = "Stack to Back";
     }
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
+      html: "<svg>" + href + "</svg>",
       tooltip: tooltip
     };
 
@@ -1477,32 +1466,44 @@ var ToggleOrder = L.EditAction.extend({
 
 var EnableEXIF = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#explore"></use>';
+    var href =
+      '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#explore"></use>';
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
-      tooltip: 'Geolocate Image'
+      html: "<svg>" + href + "</svg>",
+      tooltip: "Geolocate Image"
     };
 
     L.EditAction.prototype.initialize.call(this, map, overlay, options);
   },
 
-  addHooks: function() {
-    var image = this._overlay.getElement();
+  addHooks: function () {
+    var overlay = this._overlay;
+    var image = overlay._image;
+    new Promise(function (resolve, reject) {
+      resolve(EXIF.getData(image, function () {
+        if (confirm("Press OK to view EXIF metadata in console and geolocate the image.")) {
+          var ref = this;
+          L.tools.EXIF(ref, overlay);
+        }
+      })).then(function (r) {
+        console.log(r);
+      });
+    });
 
-    EXIF.getData(image, L.EXIF(image));
   }
 });
 
 var Restore = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var href = '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#restore"></use>';
+    var href =
+      '<use xlink:href="../assets/icons/symbol/sprite.symbol.svg#restore"></use>';
 
     options = options || {};
     options.toolbarIcon = {
-      html: '<svg>' + href + '</svg>',
-      tooltip: 'Restore'
+      html: "<svg>" + href + "</svg>",
+      tooltip: "Restore"
     };
 
     L.EditAction.prototype.initialize.call(this, map, overlay, options);
@@ -1553,16 +1554,16 @@ L.DistortableImage.PopupBar = L.Toolbar2.Popup.extend({
   }
 });
 
-L.distortableImage.popupBar = function (latlng, options) {
+L.distortableImage.popupBar = function(latlng, options) {
   return new L.DistortableImage.PopupBar(latlng, options);
 };
 
-L.DistortableImageOverlay.addInitHook(function () {
+L.DistortableImageOverlay.addInitHook(function() {
   this.ACTIONS = [
-    ToggleTransparency, 
-    ToggleOutline, 
-    ToggleLock, 
-    ToggleRotateScale, 
+    ToggleTransparency,
+    ToggleOutline,
+    ToggleLock,
+    ToggleRotateScale,
     ToggleOrder,
     EnableEXIF,
     Restore,
@@ -1576,14 +1577,18 @@ L.DistortableImageOverlay.addInitHook(function () {
     this.editActions = this.ACTIONS;
   }
 
-  this.editing = new L.DistortableImage.Edit(this, { actions: this.editActions });
+  this.editing = new L.DistortableImage.Edit(this, {
+    actions: this.editActions
+  });
 
   if (this.options.editable) {
     L.DomEvent.on(this._image, "load", this.editing.enable, this.editing);
   }
 
-  this.on('remove', function () {
-    if (this.editing) { this.editing.disable(); }
+  this.on("remove", function() {
+    if (this.editing) {
+      this.editing.disable();
+    }
   });
 });
 

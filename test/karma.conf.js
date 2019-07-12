@@ -7,12 +7,13 @@ module.exports = function(config) {
     basePath: "../",
 
     plugins: [
+      require("glfx"),
       require("mocha"),
+      require("exif-js"),
       require("karma-mocha"),
       require("karma-coverage"),
       require("karma-mocha-reporter"),
       require("karma-phantomjs-launcher"),
-      require("glfx"),
       require("webgl-distort/dist/webgl-distort.js")
     ],
 
@@ -33,7 +34,7 @@ module.exports = function(config) {
       "node_modules/chai/chai.js",
       "node_modules/sinon/pkg/sinon.js",
       "src/util/*.js",
-      "src/edit/getEXIFdata.js",
+      "src/edit/tools/L.tools.EXIF.js",
       "src/edit/BoxSelector.js",
       "src/edit/EditHandle.js",
       "src/edit/LockHandle.js",
@@ -89,9 +90,9 @@ module.exports = function(config) {
 
     coverageReporter: {
       reporters: [
-        { type: "text", dir: "../coverage/", file: "coverage.txt" },
-        { type: "lcovonly", dir: "../coverage/" },
-        { type: "html", dir: "../coverage/" }
+        { type: "text", dir: "coverage/", file: "coverage.txt" },
+        { type: "lcovonly", dir: "coverage/" },
+        { type: "html", dir: "coverage/" }
       ]
     }
   });
