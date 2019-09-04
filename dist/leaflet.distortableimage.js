@@ -1370,8 +1370,9 @@ L.DistortableImage.action_map = {};
 
 var ToggleTransparency = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var edit = overlay.editing,
-        use, tooltip;
+    var edit = overlay.editing;
+    var use;
+    var tooltip;
 
     if (edit._transparent) {
       use = 'opacity';
@@ -1405,8 +1406,9 @@ var ToggleTransparency = L.EditAction.extend({
 
 var ToggleOutline = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var edit = overlay.editing,
-        use, tooltip;
+    var edit = overlay.editing;
+    var use;
+    var tooltip;
 
     if (edit._outlined) {
       use = 'border_clear';
@@ -1460,8 +1462,9 @@ var Delete = L.EditAction.extend({
 
 var ToggleLock = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var edit = overlay.editing,
-        use, tooltip;
+    var edit = overlay.editing;
+    var use;
+    var tooltip;
 
     if (edit._mode === 'lock') {
       use = 'unlock';
@@ -1493,8 +1496,9 @@ var ToggleLock = L.EditAction.extend({
 
 var ToggleRotateScale = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var edit = overlay.editing,
-        use, tooltip;
+    var edit = overlay.editing;
+    var use;
+    var tooltip;
 
     if (edit._mode === 'rotateScale') {
       use = 'distort';
@@ -1549,8 +1553,9 @@ var Export = L.EditAction.extend({
 
 var ToggleOrder = L.EditAction.extend({
   initialize: function(map, overlay, options) {
-    var edit = overlay.editing,
-        use, tooltip;
+    var edit = overlay.editing;
+    var use;
+    var tooltip;
 
     if (edit._toggledImage) {
       use = 'flip_to_front';
@@ -1619,7 +1624,7 @@ var Revert = L.EditAction.extend({
 
   addHooks: function() {
     this._overlay._revert();
-  }
+  },
 });
 
 var ToggleRotate = L.EditAction.extend({
@@ -1654,7 +1659,7 @@ var ToggleScale = L.EditAction.extend({
       html: use,
       tooltip: 'Scale Image',
     };
-    
+
     L.DistortableImage.action_map.s = '_toggleScale';
     L.EditAction.prototype.initialize.call(this, map, overlay, options);
   },
@@ -1703,13 +1708,13 @@ L.DistortableImageOverlay.addInitHook(function() {
     Delete,
   ];
 
-if (this.options.actions) { /* (`this` being DistortableImageOverlay, not the toolbar) */
+  if (this.options.actions) { /* (`this` being DistortableImageOverlay, not the toolbar) */
     this.editActions = this.options.actions;
   } else {
     this.editActions = this.ACTIONS;
   }
 
-  this.editing = new L.DistortableImage.Edit(this, { actions: this.editActions });
+  this.editing = new L.DistortableImage.Edit(this, {actions: this.editActions});
 });
 
 L.distortableImage = L.DistortableImage || {};
@@ -2790,6 +2795,9 @@ L.DistortableCollection.Edit = L.Handler.extend({
 L.DomUtil = L.DomUtil || {};
 L.DistortableImage = L.DistortableImage || {};
 L.distortableImage = L.DistortableImage;
+// L.DistortableImageOverlay.addInitHook(function () {
+//   console.log(this.ACTIONS);
+// });
 
 L.DistortableImage.Keymapper = L.Handler.extend({
 
@@ -2799,6 +2807,7 @@ L.DistortableImage.Keymapper = L.Handler.extend({
 
   initialize: function(map, options) {
     this._map = map;
+    this.action_map = L.DistortableImage.action_map;
     L.setOptions(this, options);
   },
 
@@ -2861,6 +2870,31 @@ L.DistortableImage.Keymapper = L.Handler.extend({
 
   _setMapper: function(container, wrap, button) {
     this._keymapper = L.control({position: this.options.position});
+
+    var actions = this.action_map;
+    var action_map_str = '', buffer = '', val = '';
+    for (var i = 0; i < Object.keys(actions).length; i++) {
+      if (Object.values(actions)[i].slice(1, 4) === 'get') {
+        val = 'Get' + Object.values(actions)[i].slice(4);
+      }
+      if (Object.values(actions)[i].slice(1, 7) === 'remove') {
+        val = 'Remove' + Object.values(actions)[i].slice(7);
+      }
+      if (Object.values(actions)[i].slice(1, 7) === 'toggle') {
+        val = 'Toggle' + Object.values(actions)[i].slice(7);
+      }
+      val = val.match(/[A-Z][a-z]+|[0-9]+/g).join(" ");
+      if (Object.values(actions)[i] === Object.values(actions)[i + 1]) {
+        buffer = '</kbd><kbd>' + Object.keys(actions)[i];
+        continue;
+      }
+      action_map_str += '<tr><td><div class="left"><span>' +
+        val + '</span></div><div class="right"><kbd>' +
+        Object.keys(actions)[i] + buffer +
+        '</kbd></div></td></tr>';
+      buffer = '';
+      val = '';
+    }
 
     this._keymapper.onAdd = function() {
       container.appendChild(wrap);
