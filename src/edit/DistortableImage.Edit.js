@@ -139,7 +139,7 @@ L.DistortableImage.Edit = L.Handler.extend({
 
     this._lockHandles = L.layerGroup();
     for (i = 0; i < 4; i++) {
-      this._lockHandles.addLayer(L.lockHandle(overlay, i, {draggable: false}));
+      this._lockHandles.addLayer(L.lockHandle(overlay, i, { draggable: false }));
     }
 
     this._handles = {
@@ -288,7 +288,7 @@ L.DistortableImage.Edit = L.Handler.extend({
      * Adjust default behavior of L.Draggable, which overwrites the CSS3
      * distort transformations that we set when it calls L.DomUtil.setPosition.
      */
-    this.dragging._updatePosition = function() {
+    this.dragging._updatePosition = () => {
       var topLeft = overlay.getCorner(0);
       var delta = this._newPos.subtract(map.latLngToLayerPoint(topLeft));
       var currentPoint;
@@ -405,7 +405,7 @@ L.DistortableImage.Edit = L.Handler.extend({
     downloadable.id = downloadable.id || 'tempId12345';
     document.body.appendChild(downloadable);
 
-    downloadable.onload = function onLoadDownloadableImage() {
+    downloadable.onload = () => {
       var height = downloadable.height;
       var width = downloadable.width;
       var nw = map.latLngToLayerPoint(overlay.getCorner(0));
@@ -433,16 +433,16 @@ L.DistortableImage.Edit = L.Handler.extend({
       // sw.y -= nw.y;
 
       // run once warping is complete
-      downloadable.onload = function() {
+      downloadable.onload = () => {
         L.DomUtil.remove(downloadable);
       };
 
       if (window && window.hasOwnProperty('warpWebGl')) {
         warpWebGl(
-            downloadable.id,
-            [0, 0, width, 0, width, height, 0, height],
-            [nw.x, nw.y, ne.x, ne.y, se.x, se.y, sw.x, sw.y],
-            true // trigger download
+          downloadable.id,
+          [0, 0, width, 0, width, height, 0, height],
+          [nw.x, nw.y, ne.x, ne.y, se.x, se.y, sw.x, sw.y],
+          true // trigger download
         );
       }
     };
